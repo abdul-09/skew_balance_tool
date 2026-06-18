@@ -36,4 +36,8 @@ source = ["skewproof"]
 [tool.coverage.report]
 show_missing = true
 omit = ["skewproof/__init__.py"]
-exclude_lines = ["pragma: no cover"]
+exclude_lines = [
+    "pragma: no cover",
+    # Protocol / interface method bodies that are never executed.
+    "^\\s*\\.\\.\\.$",
+]
