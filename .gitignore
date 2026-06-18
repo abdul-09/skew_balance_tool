@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+dist/
+build/
+
+# personal working notes, not for the repo
+NOTES.md
