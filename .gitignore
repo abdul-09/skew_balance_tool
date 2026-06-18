@@ -7,6 +7,9 @@ htmlcov/
 .venv/
 dist/
 build/
+.gitignore
 
 # personal working notes, not for the repo
 NOTES.md
+CATEGORY.md
+PLAN.md
