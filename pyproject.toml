@@ -19,6 +19,9 @@ dev = [
 postgres = [
     "psycopg2-binary>=2.9",
 ]
+redis = [
+    "redis>=5",
+]
 
 [tool.setuptools.packages.find]
 include = ["skewproof*"]
