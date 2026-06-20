@@ -11,6 +11,9 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = []
 
+[project.scripts]
+skewproof = "skewproof.cli:entrypoint"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",

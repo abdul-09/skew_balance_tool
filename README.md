@@ -37,6 +37,17 @@ function, so the answers agree by construction. The point-in-time filter
 (`event_ts <= as_of`) lives inside `reduce()`, which is what stops a training set
 from seeing values that didn't exist yet.
 
+## Try it
+
+```bash
+pip install -e ".[dev]"
+python -m skewproof.cli demo
+```
+
+You'll see the same feature computed two ways, point-in-time for training and from
+the online store for serving, with the values matching. Change `--day` to watch the
+point-in-time filter include or exclude a later reading.
+
 ## Develop
 
 ```bash
@@ -46,11 +57,24 @@ pytest
 
 The test run enforces 100% line and branch coverage and fails below it.
 
-## Status
+The Postgres and Redis integration tests are skipped unless you point them at running
+services:
 
-First commit: the core definition and the project skeleton. The training and
-serving stores, the Postgres and Redis backends, and the end-to-end demo land in
-later commits. The model is tested on its own before any storage exists.
+```bash
+docker compose -f deploy/docker-compose.yml up -d
+pip install -e ".[dev,postgres,redis]"
+SKEWPROOF_PG_DSN=postgresql://skewproof:skewproof@localhost:5432/skewproof \
+SKEWPROOF_REDIS_URL=redis://localhost:6379/0 \
+pytest
+```
+
+## How it fits together
+
+The offline path reads history from an `EventSource` (in-memory or Postgres) and
+builds point-in-time training sets. The online path serves materialized values from
+an `OnlineStore` (in-memory or Redis). A materialization job syncs offline to online
+and is safe to re-run. Every path computes values through one `reduce()`, so training
+and serving cannot disagree.
 
 ## License
 
