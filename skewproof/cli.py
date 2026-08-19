@@ -12,9 +12,9 @@ Subcommands:
 from __future__ import annotations
 
 import argparse
-import io
 import sys
 from datetime import datetime
+from typing import TextIO
 
 from . import __version__
 from .demo import run_demo, ts
@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str], stdout: io.TextIOBase) -> int:
+def main(argv: list[str], stdout: TextIO) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
