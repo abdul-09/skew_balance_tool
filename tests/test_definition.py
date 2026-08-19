@@ -104,7 +104,9 @@ class TestValidation:
             )
 
     def test_default_aggregation_is_latest(self) -> None:
-        d = FeatureDefinition(name="n", source="s", entity_key="e", timestamp_key="t", value_key="v")
+        d = FeatureDefinition(
+            name="n", source="s", entity_key="e", timestamp_key="t", value_key="v"
+        )
         assert d.aggregation is Aggregation.LATEST
 
 

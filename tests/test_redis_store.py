@@ -13,7 +13,7 @@ from datetime import datetime
 
 import pytest
 
-from skewproof.definition import Aggregation, FeatureDefinition, feature, FeatureRegistry
+from skewproof.definition import Aggregation, FeatureDefinition, FeatureRegistry, feature
 from skewproof.offline import InMemoryEventSource, OfflineStore, SpineRow
 from skewproof.online import OnlineStore
 from skewproof.redis_store import OnlineStoreProtocol, RedisOnlineStore

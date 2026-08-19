@@ -6,7 +6,7 @@ import io
 import pytest
 
 from skewproof import __version__
-from skewproof.cli import main, build_parser
+from skewproof.cli import build_parser, main
 from skewproof.demo import run_demo, seed_source, ts
 
 
