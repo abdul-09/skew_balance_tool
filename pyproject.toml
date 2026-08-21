@@ -21,10 +21,10 @@ dev = [
     "ruff>=0.16",
 ]
 postgres = [
-    "psycopg2-binary>=2.9",
+    "psycopg2-binary>=2.9,<3",
 ]
 redis = [
-    "redis>=5",
+    "redis>=5,<9",
 ]
 
 [tool.setuptools.packages.find]

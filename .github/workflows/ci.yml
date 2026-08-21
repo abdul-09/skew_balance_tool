@@ -6,6 +6,31 @@ name: CI
   pull_request:
 
 jobs:
+  lockfile-check:
+    name: lockfile-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Recompile lockfiles and diff against committed versions
+        run: |
+          cp -r requirements /tmp/requirements-committed
+          for extra in dev postgres redis; do
+            pip-compile --quiet --strip-extras --extra "$extra" \
+              -o "requirements/$extra.txt" pyproject.toml
+          done
+          diff -u /tmp/requirements-committed/dev.txt requirements/dev.txt
+          diff -u /tmp/requirements-committed/postgres.txt requirements/postgres.txt
+          diff -u /tmp/requirements-committed/redis.txt requirements/redis.txt
+
   lint:
     name: lint
     runs-on: ubuntu-latest
@@ -18,7 +43,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: |
+          pip install -r requirements/dev.txt
+          pip install -e . --no-deps
 
       - name: Run ruff
         run: ruff check skewproof tests
@@ -35,10 +62,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: |
+          pip install -r requirements/dev.txt
+          pip install -e . --no-deps
 
       - name: Install mypy
-        run: pip install mypy
+        run: pip install mypy==2.3.1
 
       - name: Run mypy
         run: mypy skewproof
@@ -59,7 +88,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: |
+          pip install -r requirements/dev.txt
+          pip install -e . --no-deps
 
       - name: Run pytest
         run: pytest
