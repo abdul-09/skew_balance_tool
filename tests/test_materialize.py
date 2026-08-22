@@ -93,6 +93,32 @@ class TestRun:
         assert report.values_unknown == 0
 
 
+class TestLogging:
+    def test_logs_start_and_summary(self, source, reg, caplog) -> None:
+        caplog.set_level("INFO", logger="skewproof.materialize")
+        job = MaterializationJob(OnlineStore(), source)
+        job.run(latest(reg), ["f1", "f2"], ts(6))
+        messages = [r.message for r in caplog.records]
+        assert any("materializing feature=soil_latest entities=2" in m for m in messages)
+        assert any(
+            "materialized feature=soil_latest entities=2 written=2 unknown=0 complete=True" in m
+            for m in messages
+        )
+
+    def test_logs_warning_for_unknown_value(self, source, reg, caplog) -> None:
+        caplog.set_level("WARNING", logger="skewproof.materialize")
+        job = MaterializationJob(OnlineStore(), source)
+        job.run(latest(reg), ["ghost"], ts(6))
+        messages = [r.message for r in caplog.records]
+        assert any("unknown value feature=soil_latest entity_id=ghost" in m for m in messages)
+
+    def test_no_warning_when_all_known(self, source, reg, caplog) -> None:
+        caplog.set_level("WARNING", logger="skewproof.materialize")
+        job = MaterializationJob(OnlineStore(), source)
+        job.run(latest(reg), ["f1"], ts(6))
+        assert caplog.records == []
+
+
 class TestIsComplete:
     def test_complete_when_all_known(self, source, reg) -> None:
         report = MaterializationJob(OnlineStore(), source).run(latest(reg), ["f1"], ts(6))

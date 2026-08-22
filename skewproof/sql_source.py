@@ -17,9 +17,18 @@ never hide a row that reduce() would have kept. The equivalence is covered by a 
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
+
+# A single identifier segment: letters/underscore, then letters/digits/underscore.
+# Schema-qualified names (e.g. "public.soil_readings") are allowed as multiple
+# segments joined by dots. This intentionally excludes quoting, whitespace,
+# operators, and statement separators, since these fields are interpolated
+# directly into the SQL text below rather than passed as bind parameters.
+_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+_PARAMSTYLES = {"qmark", "format"}
 
 
 class DbApiConnection(Protocol):
@@ -46,6 +55,20 @@ class SqlEventSource:
     timestamp_column: str
     value_column: str
     paramstyle: str = "qmark"
+
+    def __post_init__(self) -> None:
+        # table/entity_column/timestamp_column/value_column are interpolated
+        # directly into the SQL text in rows_for() (only entity_id and max_ts
+        # are bound as parameters), so an unvalidated identifier here is a SQL
+        # injection point. Fail fast at construction rather than at query time.
+        for field_name in ("table", "entity_column", "timestamp_column", "value_column"):
+            value = getattr(self, field_name)
+            if not _IDENTIFIER.match(value):
+                raise ValueError(
+                    f"{field_name}={value!r} is not a valid SQL identifier"
+                )
+        if self.paramstyle not in _PARAMSTYLES:
+            raise ValueError(f"unsupported paramstyle {self.paramstyle!r}")
 
     def _placeholder(self) -> str:
         if self.paramstyle == "qmark":

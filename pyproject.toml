@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Define a feature once; the same definition serves training and inference."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 dependencies = []
 
 [project.scripts]

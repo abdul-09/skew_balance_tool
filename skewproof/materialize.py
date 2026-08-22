@@ -12,18 +12,29 @@ tricky part. Two properties matter here:
 
   Observable. The job returns a MaterializationReport saying what it wrote and how
   many values were unknown (None). A silent sync is a sync you cannot trust in
-  production, so the job hands back a record you can log or assert on.
+  production, so the job hands back a record you can log or assert on. It also
+  emits its own log records (via the standard "skewproof.materialize" logger) so
+  a run's progress and any unknown values are visible without the caller having
+  to remember to log the returned report themselves. skewproof never configures
+  logging handlers or levels itself; the embedding application decides whether
+  and where these records go.
 
 The job holds no value logic. It calls OnlineStore.materialize, which calls reduce().
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 
 from .definition import FeatureDefinition
 from .offline import EventSource
 from .redis_store import OnlineStoreProtocol
+
+# Library convention: get a module-level logger, but never configure it here
+# (no handlers, no level, no basicConfig). The application embedding this job
+# decides whether/where these records go; skewproof stays silent by default.
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -55,6 +66,11 @@ class MaterializationJob:
         entity_ids: list[str],
         as_of: datetime,
     ) -> MaterializationReport:
+        logger.info(
+            "materializing feature=%s entities=%d as_of=%s",
+            definition.name, len(entity_ids), as_of.isoformat(),
+        )
+
         # Write everything through the store's materialize, so the value path is the
         # same reduce() used everywhere. Then read back to build an honest report.
         self._online.materialize(definition, self._source, entity_ids, as_of)
@@ -64,13 +80,23 @@ class MaterializationJob:
         for entity_id in entity_ids:
             if self._online.get(definition.name, entity_id) is None:
                 unknown += 1
+                logger.warning(
+                    "unknown value feature=%s entity_id=%s as_of=%s",
+                    definition.name, entity_id, as_of.isoformat(),
+                )
             else:
                 written += 1
 
-        return MaterializationReport(
+        report = MaterializationReport(
             feature_name=definition.name,
             as_of=as_of,
             entities_processed=len(entity_ids),
             values_written=written,
             values_unknown=unknown,
         )
+        logger.info(
+            "materialized feature=%s entities=%d written=%d unknown=%d complete=%s",
+            definition.name, report.entities_processed, report.values_written,
+            report.values_unknown, report.is_complete,
+        )
+        return report

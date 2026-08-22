@@ -137,6 +137,57 @@ class TestParamStyle:
         with pytest.raises(ValueError, match="unsupported paramstyle"):
             src._placeholder()
 
+    def test_unsupported_paramstyle_rejected_at_construction(self, sqlite_conn) -> None:
+        with pytest.raises(ValueError, match="unsupported paramstyle"):
+            SqlEventSource(
+                connection=sqlite_conn,
+                table="soil_readings",
+                entity_column="farmer_id",
+                timestamp_column="event_ts",
+                value_column="moisture",
+                paramstyle="named",
+            )
+
+
+class TestIdentifierValidation:
+    """table/entity_column/timestamp_column/value_column are interpolated
+    directly into SQL text, so they're validated at construction rather than
+    trusted as-is."""
+
+    @pytest.mark.parametrize("field_name", [
+        "table", "entity_column", "timestamp_column", "value_column",
+    ])
+    @pytest.mark.parametrize("bad_value", [
+        "",
+        "soil_readings; DROP TABLE users",
+        "moisture = 0 OR 1=1 --",
+        "farmer_id, secret_column",
+        "1invalid_leading_digit",
+        "has space",
+        "quoted\"name",
+    ])
+    def test_rejects_unsafe_identifier(self, sqlite_conn, field_name, bad_value) -> None:
+        kwargs = dict(
+            connection=sqlite_conn,
+            table="soil_readings",
+            entity_column="farmer_id",
+            timestamp_column="event_ts",
+            value_column="moisture",
+        )
+        kwargs[field_name] = bad_value
+        with pytest.raises(ValueError, match="not a valid SQL identifier"):
+            SqlEventSource(**kwargs)
+
+    def test_accepts_schema_qualified_identifier(self, sqlite_conn) -> None:
+        src = SqlEventSource(
+            connection=sqlite_conn,
+            table="public.soil_readings",
+            entity_column="farmer_id",
+            timestamp_column="event_ts",
+            value_column="moisture",
+        )
+        assert src.table == "public.soil_readings"
+
 
 class TestAsDatetime:
     def test_passthrough_datetime(self) -> None:
