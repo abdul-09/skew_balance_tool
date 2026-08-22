@@ -68,6 +68,20 @@ SKEWPROOF_REDIS_URL=redis://localhost:6379/0 \
 pytest
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full dev setup, what CI checks, and
+style expectations. `.env.example` documents the two variables above if you'd rather
+put them in a `.env` file than inline them per-command.
+
+### Without installing Python locally
+
+```bash
+docker build -t skewproof .
+docker run --rm skewproof
+```
+
+Or open the repo in VS Code with the Dev Containers extension for a preconfigured
+Python 3.12 environment (`.devcontainer/devcontainer.json`).
+
 ## How it fits together
 
 The offline path reads history from an `EventSource` (in-memory or Postgres) and
@@ -79,3 +93,7 @@ and serving cannot disagree.
 ## License
 
 MIT
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).

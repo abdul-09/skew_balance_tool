@@ -1,0 +1,22 @@
+{
+  "name": "skewproof",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install -e '.[dev]'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "matangover.mypy"
+      ],
+      "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["tests"]
+      }
+    }
+  }
+  // This gives you Python + the dev extras only. The Postgres and Redis
+  // integration tests are opt-in and skip themselves without services -
+  // see CONTRIBUTING.md's "Integration tests" section for bringing up
+  // deploy/docker-compose.yml alongside this container.
+}
