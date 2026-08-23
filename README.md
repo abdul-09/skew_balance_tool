@@ -48,6 +48,24 @@ You'll see the same feature computed two ways, point-in-time for training and fr
 the online store for serving, with the values matching. Change `--day` to watch the
 point-in-time filter include or exclude a later reading.
 
+## Working with your own features
+
+Feature definitions live in a plain Python file exposing a module-level `registry`
+(the same `FeatureRegistry` shown above) - there's no separate config file format to
+learn. The CLI can list, validate, and materialize from one:
+
+```bash
+skewproof list --config features.py
+skewproof validate --config features.py
+skewproof materialize --config features.py --feature soil_moisture_latest \
+  --source-path readings.csv --entities farm_a,farm_b --as-of 2026-01-08T00:00:00
+```
+
+`materialize` reads events from a CSV file and writes into an online store -
+`--store memory` (default, doesn't persist) or `--store sqlite --store-path FILE`
+(persists). It prints a `MaterializationReport` and exits non-zero if any entity's
+value came back unknown.
+
 ## Develop
 
 ```bash

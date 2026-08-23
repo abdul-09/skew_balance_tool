@@ -26,6 +26,12 @@ once it has a tagged release.
   development and onboarding without a database.
 - `SqliteOnlineStore`: a `sqlite3`-backed `OnlineStore` - durable serving
   with no server to run, sitting between the in-memory store and Redis.
+- `skewproof.config.load_registry()`: load a `FeatureRegistry` from a plain
+  Python file, reusing the same syntax the README's own example uses rather
+  than inventing a new config format.
+- CLI: `list`, `validate`, and `materialize` subcommands, all driven by
+  `--config`, so a feature can be listed, checked, and materialized from a
+  CSV source into a memory or SQLite store without writing a script.
 - `build` CI job (builds the sdist/wheel, validates packaging metadata with
   `twine check`) and a `publish` job that publishes to PyPI via Trusted
   Publishing (OIDC) when a `v*` tag is pushed. Pip dependency caching added
