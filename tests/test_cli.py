@@ -249,3 +249,29 @@ class TestCliMaterialize:
 
         with SqliteOnlineStore(str(store_path)) as reopened:
             assert reopened.get("soil_latest", "f1") == 30.0
+
+
+class TestCliDoctor:
+    def _run(self, argv: list[str]) -> tuple[int, str]:
+        buf = io.StringIO()
+        code = main(argv, buf)
+        return code, buf.getvalue()
+
+    def test_reports_not_configured_when_env_vars_unset(self, monkeypatch) -> None:
+        monkeypatch.delenv("SKEWPROOF_PG_DSN", raising=False)
+        monkeypatch.delenv("SKEWPROOF_REDIS_URL", raising=False)
+        code, out = self._run(["doctor"])
+        assert code == 0
+        assert "[--] postgres:" in out
+        assert "[--] redis:" in out
+
+    def test_reports_failed_and_exits_nonzero_when_configured_but_unusable(
+        self, monkeypatch
+    ) -> None:
+        # psycopg2/redis genuinely aren't installed in this environment, so setting
+        # the DSN/URL exercises the real "configured but can't connect" path.
+        monkeypatch.setenv("SKEWPROOF_PG_DSN", "postgresql://x")
+        monkeypatch.delenv("SKEWPROOF_REDIS_URL", raising=False)
+        code, out = self._run(["doctor"])
+        assert code == 1
+        assert "[FAIL] postgres:" in out

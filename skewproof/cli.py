@@ -11,6 +11,7 @@ Subcommands:
   list         list the features defined in a config file
   validate     load a config file and report whether it's valid
   materialize  run a MaterializationJob for one feature from a config file
+  doctor       check connectivity for the optional Postgres/Redis backends
 
 list/validate/materialize all take --config, a path to a Python file exposing a
 module-level `registry` FeatureRegistry (see skewproof.config.load_registry).
@@ -26,6 +27,7 @@ from . import __version__
 from .config import ConfigError, load_registry
 from .csv_source import CsvEventSource
 from .demo import run_demo, ts
+from .doctor import CheckResult, run_doctor
 from .materialize import MaterializationJob, MaterializationReport
 from .online import OnlineStore
 from .sqlite_store import SqliteOnlineStore
@@ -56,6 +58,11 @@ def _format_report(report: MaterializationReport) -> str:
         f"complete: {report.is_complete}",
     ]
     return "\n".join(lines)
+
+
+def _format_check(result: CheckResult) -> str:
+    symbol = {"ok": "OK", "not_configured": "--", "failed": "FAIL"}[result.status]
+    return f"[{symbol}] {result.name}: {result.detail}"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -102,6 +109,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materialize.add_argument(
         "--as-of", required=True, help="ISO 8601 timestamp, e.g. 2026-01-08T00:00:00"
+    )
+
+    sub.add_parser(
+        "doctor", help="check connectivity for the optional Postgres/Redis backends"
     )
 
     return parser
@@ -163,6 +174,13 @@ def _cmd_materialize(args: argparse.Namespace, stdout: TextIO) -> int:
     return 0 if report.is_complete else 1
 
 
+def _cmd_doctor(stdout: TextIO) -> int:
+    results = run_doctor()
+    for result in results:
+        stdout.write(_format_check(result) + "\n")
+    return 0 if all(r.ok for r in results) else 1
+
+
 def main(argv: list[str], stdout: TextIO) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -176,6 +194,8 @@ def main(argv: list[str], stdout: TextIO) -> int:
         return _cmd_validate(args, stdout)
     if args.command == "materialize":
         return _cmd_materialize(args, stdout)
+    if args.command == "doctor":
+        return _cmd_doctor(stdout)
 
     # Only "demo" remains; subparsers are required so nothing else reaches here.
     stdout.write(_format_demo(ts(args.day)) + "\n")
