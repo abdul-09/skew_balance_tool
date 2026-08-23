@@ -22,6 +22,10 @@ once it has a tagged release.
   `timestamp_column`/`value_column` fields, closing a SQL-identifier
   injection point where those fields were interpolated directly into query
   text.
+- `CsvEventSource`: a stdlib-only, file-backed `EventSource` for local
+  development and onboarding without a database.
+- `SqliteOnlineStore`: a `sqlite3`-backed `OnlineStore` - durable serving
+  with no server to run, sitting between the in-memory store and Redis.
 - `build` CI job (builds the sdist/wheel, validates packaging metadata with
   `twine check`) and a `publish` job that publishes to PyPI via Trusted
   Publishing (OIDC) when a `v*` tag is pushed. Pip dependency caching added

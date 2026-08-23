@@ -84,11 +84,23 @@ Python 3.12 environment (`.devcontainer/devcontainer.json`).
 
 ## How it fits together
 
-The offline path reads history from an `EventSource` (in-memory or Postgres) and
-builds point-in-time training sets. The online path serves materialized values from
-an `OnlineStore` (in-memory or Redis). A materialization job syncs offline to online
-and is safe to re-run. Every path computes values through one `reduce()`, so training
-and serving cannot disagree.
+The offline path reads history from an `EventSource` (in-memory, CSV, or Postgres)
+and builds point-in-time training sets. The online path serves materialized values
+from an `OnlineStore` (in-memory, SQLite, or Redis). A materialization job syncs
+offline to online and is safe to re-run. Every path computes values through one
+`reduce()`, so training and serving cannot disagree.
+
+Both sides are `Protocol`-typed, so a new backend only needs to satisfy `rows_for()`
+(a source) or `materialize()`/`get()` (a store) - see `csv_source.py` and
+`sqlite_store.py` for the smallest examples of each.
+
+| Backend        | Kind         | Needs               | Good for                          |
+|----------------|--------------|---------------------|------------------------------------|
+| `InMemoryEventSource` / `OnlineStore` | source / store | nothing | tests, demos |
+| `CsvEventSource`      | source | a file              | local dev, onboarding without a DB |
+| `SqlEventSource`      | source | Postgres or SQLite  | production history                 |
+| `SqliteOnlineStore`   | store  | a file (or none)    | single-process serving, durable, no server to run |
+| `RedisOnlineStore`    | store  | Redis               | multi-process / networked serving  |
 
 ## License
 
