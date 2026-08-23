@@ -32,6 +32,14 @@ once it has a tagged release.
 - CLI: `list`, `validate`, and `materialize` subcommands, all driven by
   `--config`, so a feature can be listed, checked, and materialized from a
   CSV source into a memory or SQLite store without writing a script.
+- `skewproof.batch.BatchMaterializationJob`: materialize several features
+  against one online store in one call, each with its own `EventSource`.
+- `skewproof.backfill.BackfillJob`: replay one feature across a range of
+  `as_of` instants, for incremental population or historical coverage
+  auditing (`BackfillReport.incomplete_steps()`).
+- `skewproof.doctor` / `skewproof doctor`: connectivity checks for the
+  optional Postgres/Redis backends, keyed off the same env vars the
+  integration tests use.
 - `build` CI job (builds the sdist/wheel, validates packaging metadata with
   `twine check`) and a `publish` job that publishes to PyPI via Trusted
   Publishing (OIDC) when a `v*` tag is pushed. Pip dependency caching added

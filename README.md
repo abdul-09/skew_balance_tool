@@ -66,6 +66,27 @@ skewproof materialize --config features.py --feature soil_moisture_latest \
 (persists). It prints a `MaterializationReport` and exits non-zero if any entity's
 value came back unknown.
 
+## Operational tooling
+
+Beyond materializing one feature for one as_of, three small building blocks for
+running this in practice, all Python APIs (no CLI wiring beyond `doctor`, since
+the others need a source-and-entities-per-feature shape that doesn't compress well
+into flags - a short script is the natural fit, the same way `demo.py` is):
+
+- `skewproof.batch.BatchMaterializationJob` - materialize several features (a
+  whole registry, or a subset) against one online store in a single call, each
+  with its own `EventSource`. Fails before writing anything if a feature is
+  missing a source, rather than silently skipping it.
+- `skewproof.backfill.BackfillJob` - replay one feature across a range of as_of
+  instants. Every store here holds one current value per (feature, entity), so
+  only the last as_of's values end up served; the earlier steps are useful for
+  incrementally populating a store, or for auditing a feature's historical
+  coverage (`BackfillReport.incomplete_steps()`).
+- `skewproof doctor` - checks whether `SKEWPROOF_PG_DSN`/`SKEWPROOF_REDIS_URL`
+  are set and, if so, whether the corresponding client library is installed and
+  can actually connect. Exits non-zero only if something configured is broken;
+  an unconfigured backend is not an error.
+
 ## Develop
 
 ```bash
