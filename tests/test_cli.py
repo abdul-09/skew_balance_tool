@@ -87,3 +87,165 @@ class TestParser:
         args = parser.parse_args(["demo", "--day", "3"])
         assert args.command == "demo"
         assert args.day == 3
+
+
+_CONFIG = '''
+from skewproof.definition import Aggregation, FeatureRegistry, feature
+
+registry = FeatureRegistry()
+
+feature(
+    registry,
+    name="soil_latest",
+    source="soil_readings",
+    entity_key="farmer_id",
+    timestamp_key="event_ts",
+    value_key="moisture",
+    aggregation=Aggregation.LATEST,
+)
+'''
+
+_EMPTY_CONFIG = "from skewproof.definition import FeatureRegistry\nregistry = FeatureRegistry()\n"
+
+_CSV = (
+    "farmer_id,event_ts,moisture\n"
+    "f1,2026-01-01T00:00:00,10.0\n"
+    "f1,2026-01-05T00:00:00,30.0\n"
+)
+
+
+class TestCliList:
+    def _run(self, argv: list[str]) -> tuple[int, str]:
+        buf = io.StringIO()
+        code = main(argv, buf)
+        return code, buf.getvalue()
+
+    def test_lists_registered_features(self, tmp_path) -> None:
+        config = tmp_path / "features.py"
+        config.write_text(_CONFIG)
+        code, out = self._run(["list", "--config", str(config)])
+        assert code == 0
+        assert "soil_latest" in out
+        assert "source=soil_readings" in out
+        assert "agg=latest" in out
+        assert "window=all history" in out
+
+    def test_empty_registry_prints_placeholder(self, tmp_path) -> None:
+        config = tmp_path / "empty.py"
+        config.write_text(_EMPTY_CONFIG)
+        code, out = self._run(["list", "--config", str(config)])
+        assert code == 0
+        assert "no features registered" in out
+
+    def test_config_error_reported(self, tmp_path) -> None:
+        code, out = self._run(["list", "--config", str(tmp_path / "missing.py")])
+        assert code == 1
+        assert "error:" in out
+
+
+class TestCliValidate:
+    def _run(self, argv: list[str]) -> tuple[int, str]:
+        buf = io.StringIO()
+        code = main(argv, buf)
+        return code, buf.getvalue()
+
+    def test_valid_config_reports_ok(self, tmp_path) -> None:
+        config = tmp_path / "features.py"
+        config.write_text(_CONFIG)
+        code, out = self._run(["validate", "--config", str(config)])
+        assert code == 0
+        assert "OK: 1 feature(s) valid" in out
+
+    def test_invalid_config_reports_error(self, tmp_path) -> None:
+        code, out = self._run(["validate", "--config", str(tmp_path / "missing.py")])
+        assert code == 1
+        assert "invalid:" in out
+
+
+class TestCliMaterialize:
+    def _run(self, argv: list[str]) -> tuple[int, str]:
+        buf = io.StringIO()
+        code = main(argv, buf)
+        return code, buf.getvalue()
+
+    def _write_config_and_csv(self, tmp_path) -> tuple[str, str]:
+        config = tmp_path / "features.py"
+        config.write_text(_CONFIG)
+        csv_path = tmp_path / "readings.csv"
+        csv_path.write_text(_CSV)
+        return str(config), str(csv_path)
+
+    def test_materialize_to_memory_store(self, tmp_path) -> None:
+        config, csv_path = self._write_config_and_csv(tmp_path)
+        code, out = self._run([
+            "materialize", "--config", config, "--feature", "soil_latest",
+            "--source-path", csv_path, "--entities", "f1",
+            "--as-of", "2026-01-06T00:00:00",
+        ])
+        assert code == 0
+        assert "values written: 1" in out
+        assert "values unknown: 0" in out
+        assert "complete: True" in out
+
+    def test_materialize_unknown_entity_is_incomplete(self, tmp_path) -> None:
+        config, csv_path = self._write_config_and_csv(tmp_path)
+        code, out = self._run([
+            "materialize", "--config", config, "--feature", "soil_latest",
+            "--source-path", csv_path, "--entities", "ghost",
+            "--as-of", "2026-01-06T00:00:00",
+        ])
+        assert code == 1
+        assert "values unknown: 1" in out
+        assert "complete: False" in out
+
+    def test_materialize_multiple_entities(self, tmp_path) -> None:
+        config, csv_path = self._write_config_and_csv(tmp_path)
+        code, out = self._run([
+            "materialize", "--config", config, "--feature", "soil_latest",
+            "--source-path", csv_path, "--entities", "f1, ghost",
+            "--as-of", "2026-01-06T00:00:00",
+        ])
+        assert code == 1
+        assert "entities processed: 2" in out
+
+    def test_materialize_bad_config_reports_error(self, tmp_path) -> None:
+        _, csv_path = self._write_config_and_csv(tmp_path)
+        code, out = self._run([
+            "materialize", "--config", str(tmp_path / "missing.py"), "--feature", "soil_latest",
+            "--source-path", csv_path, "--entities", "f1", "--as-of", "2026-01-06T00:00:00",
+        ])
+        assert code == 1
+        assert "error:" in out
+
+    def test_materialize_unknown_feature_reports_error(self, tmp_path) -> None:
+        config, csv_path = self._write_config_and_csv(tmp_path)
+        code, out = self._run([
+            "materialize", "--config", config, "--feature", "does_not_exist",
+            "--source-path", csv_path, "--entities", "f1", "--as-of", "2026-01-06T00:00:00",
+        ])
+        assert code == 1
+        assert "error:" in out
+
+    def test_materialize_bad_as_of_reports_error(self, tmp_path) -> None:
+        config, csv_path = self._write_config_and_csv(tmp_path)
+        code, out = self._run([
+            "materialize", "--config", config, "--feature", "soil_latest",
+            "--source-path", csv_path, "--entities", "f1", "--as-of", "not-a-timestamp",
+        ])
+        assert code == 1
+        assert "invalid --as-of" in out
+
+    def test_materialize_to_sqlite_store_persists(self, tmp_path) -> None:
+        config, csv_path = self._write_config_and_csv(tmp_path)
+        store_path = tmp_path / "features.db"
+        code, out = self._run([
+            "materialize", "--config", config, "--feature", "soil_latest",
+            "--source-path", csv_path, "--store", "sqlite", "--store-path", str(store_path),
+            "--entities", "f1", "--as-of", "2026-01-06T00:00:00",
+        ])
+        assert code == 0
+
+        from skewproof.sqlite_store import SqliteOnlineStore
+
+        with SqliteOnlineStore(str(store_path)) as reopened:
+            assert reopened.get("soil_latest", "f1") == 30.0
