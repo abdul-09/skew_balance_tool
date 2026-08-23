@@ -61,3 +61,13 @@ exclude_lines = [
     # Protocol / interface method bodies that are never executed.
     "^\\s*\\.\\.\\.$",
 ]
+
+[[tool.mypy.overrides]]
+# psycopg2/redis are optional extras (postgres/redis), not installed in the
+# base dev environment mypy runs in. doctor.py imports them dynamically to do
+# real connectivity checks, which needs real client types - unlike
+# sql_source.py/redis_store.py, which only need their Protocol shape and so
+# never import them at all. ignore_missing_imports treats them as Any rather
+# than failing the typecheck job over an intentionally-absent dependency.
+module = ["psycopg2.*", "redis.*"]
+ignore_missing_imports = true
