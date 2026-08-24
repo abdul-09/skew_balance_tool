@@ -40,6 +40,9 @@ once it has a tagged release.
 - `skewproof.doctor` / `skewproof doctor`: connectivity checks for the
   optional Postgres/Redis backends, keyed off the same env vars the
   integration tests use.
+- Property-based tests (Hypothesis) fuzzing `FeatureDefinition.reduce()`'s
+  invariants and the offline/online no-skew guarantee across randomly
+  generated event histories, aggregations, windows, and `as_of` values.
 - `build` CI job (builds the sdist/wheel, validates packaging metadata with
   `twine check`) and a `publish` job that publishes to PyPI via Trusted
   Publishing (OIDC) when a `v*` tag is pushed. Pip dependency caching added

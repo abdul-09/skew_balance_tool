@@ -141,6 +141,29 @@ Both sides are `Protocol`-typed, so a new backend only needs to satisfy `rows_fo
 | `SqliteOnlineStore`   | store  | a file (or none)    | single-process serving, durable, no server to run |
 | `RedisOnlineStore`    | store  | Redis               | multi-process / networked serving  |
 
+## Testing the core guarantee
+
+`tests/test_definition.py` and `tests/test_online.py` check `reduce()` and the
+no-skew claim against handwritten examples. Two more files fuzz the same things
+with [Hypothesis](https://hypothesis.readthedocs.io/), generating hundreds of
+random cases per run instead of a handful of fixtures:
+
+- `tests/test_definition_properties.py` - invariants `reduce()` must satisfy for
+  *any* input: no row after `as_of` can affect the result, row order doesn't
+  matter, `SUM == MEAN * COUNT`, `MIN <= MEAN <= MAX`, and the window boundary is
+  inclusive (checked both against an independently-written reference filter and
+  with an explicit exact-boundary case, since random timestamps almost never
+  land precisely on a boundary on their own).
+- `tests/test_no_skew_properties.py` - the offline training value and the
+  online served value agree for randomly generated event histories, as_of
+  values, aggregations, and windows, against every in-process store.
+
+Both were written to actually fail on a broken implementation, not just to
+exist: while writing them, I temporarily reintroduced two bugs that had already
+been fixed elsewhere in this project's history (a `<=`/`<` inclusive-boundary
+slip, and a one-second skew between the offline and online value) and confirmed
+each was still caught.
+
 ## License
 
 MIT
