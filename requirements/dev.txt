@@ -4,9 +4,9 @@
 #
 #    pip-compile --extra=dev --output-file=requirements/dev.txt --strip-extras pyproject.toml
 #
-coverage==7.15.4
+coverage==7.16.0
     # via pytest-cov
-hypothesis==6.165.10
+hypothesis==6.167.1
     # via skewproof (pyproject.toml)
 iniconfig==2.3.0
     # via pytest
@@ -24,7 +24,7 @@ pytest==9.1.1
     #   skewproof (pyproject.toml)
 pytest-cov==7.1.0
     # via skewproof (pyproject.toml)
-ruff==0.16.4
+ruff==0.16.5
     # via skewproof (pyproject.toml)
 sortedcontainers==2.4.0
     # via hypothesis
