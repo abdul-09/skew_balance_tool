@@ -1,0 +1,48 @@
+site_name: skewproof
+site_description: Define a feature once; the same definition serves training and inference.
+repo_url: https://github.com/abdul-09/skew_balance_tool
+repo_name: abdul-09/skew_balance_tool
+edit_uri: edit/main/docs/
+
+hooks:
+  - docs_hooks/include_root_docs.py
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Architecture: architecture.md
+  - CLI reference: cli.md
+  - Operational tooling: operational-tooling.md
+  - Serving over HTTP: serving.md
+  - Testing: testing.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md

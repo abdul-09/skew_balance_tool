@@ -9,6 +9,20 @@ description = "Define a feature once; the same definition serves training and in
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+
+# Deliberately empty, not incomplete: the core package (definition/offline/online/
+# materialize/csv_source/sqlite_store/serve/cli) only imports the standard library.
+# psycopg2 and redis are never imported at module level anywhere in skewproof - see
+# sql_source.py and redis_store.py, which depend only on a Protocol shape (the
+# minimal method signature a real client satisfies), not the client library itself.
+# doctor.py is the one exception: it does a real, deferred `import psycopg2`/`import
+# redis` inside its check functions specifically to do a live connectivity check, and
+# handles the ImportError itself when the corresponding extra isn't installed - see
+# doctor.py's module docstring and the mypy override below. Those two packages
+# belong under [project.optional-dependencies], as extras, because they're
+# genuinely optional at runtime: install skewproof and you get a complete,
+# working library; install skewproof[postgres] or skewproof[redis] and you also
+# get the backend that needs them.
 dependencies = []
 
 [project.scripts]
@@ -26,6 +40,10 @@ postgres = [
 ]
 redis = [
     "redis>=5,<9",
+]
+docs = [
+    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9,<10",
 ]
 
 [tool.setuptools.packages.find]
