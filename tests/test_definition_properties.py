@@ -61,6 +61,22 @@ class TestOrderIndependence:
     def test_shuffling_input_rows_does_not_change_the_result(
         self, rows, as_of, agg, data
     ) -> None:
+        """Every aggregation here is a symmetric function over the visible
+        values - sum, count, min, max, and mean don't care what order they're
+        computed in - except LATEST, whose tie-break between two rows sharing
+        the exact same maximum timestamp is defined by input order (a stable
+        sort preserves the original relative order of ties). That's
+        legitimate, documented behavior, not something this property should
+        be asserting against - so the one genuinely ambiguous case (more than
+        one visible row exactly at the max timestamp, with different values)
+        is excluded here rather than silently mis-asserted.
+        """
+        visible = [(ts, v) for ts, v in rows if ts <= as_of]
+        if visible:
+            max_ts = max(ts for ts, _ in visible)
+            tied_values = {v for ts, v in visible if ts == max_ts}
+            assume(agg != Aggregation.LATEST or len(tied_values) <= 1)
+
         shuffled = data.draw(st.permutations(rows))
         definition = make_def(agg)
         assert definition.reduce(rows, as_of) == definition.reduce(shuffled, as_of)
