@@ -12,9 +12,11 @@ Subcommands:
   validate     load a config file and report whether it's valid
   materialize  run a MaterializationJob for one feature from a config file
   doctor       check connectivity for the optional Postgres/Redis backends
+  serve        serve materialized features over HTTP
 
-list/validate/materialize all take --config, a path to a Python file exposing a
-module-level `registry` FeatureRegistry (see skewproof.config.load_registry).
+list/validate/materialize/serve all take --config, a path to a Python file
+exposing a module-level `registry` FeatureRegistry (see
+skewproof.config.load_registry).
 """
 from __future__ import annotations
 
@@ -30,6 +32,7 @@ from .demo import run_demo, ts
 from .doctor import CheckResult, run_doctor
 from .materialize import MaterializationJob, MaterializationReport
 from .online import OnlineStore
+from .serve import run_server
 from .sqlite_store import SqliteOnlineStore
 
 
@@ -115,6 +118,23 @@ def build_parser() -> argparse.ArgumentParser:
         "doctor", help="check connectivity for the optional Postgres/Redis backends"
     )
 
+    serve = sub.add_parser("serve", help="serve materialized features over HTTP")
+    serve.add_argument("--config", required=True, help="path to a Python config file")
+    serve.add_argument(
+        "--store",
+        choices=["memory", "sqlite"],
+        default="memory",
+        help="online store backend to serve from (default: memory, empty until you "
+        "materialize into it separately - sqlite is the usual choice here)",
+    )
+    serve.add_argument(
+        "--store-path",
+        default=":memory:",
+        help="sqlite store file path (only meaningful with --store sqlite)",
+    )
+    serve.add_argument("--host", default="127.0.0.1", help="bind host (default: 127.0.0.1)")
+    serve.add_argument("--port", type=int, default=8000, help="bind port (default: 8000)")
+
     return parser
 
 
@@ -181,6 +201,18 @@ def _cmd_doctor(stdout: TextIO) -> int:
     return 0 if all(r.ok for r in results) else 1
 
 
+def _cmd_serve(args: argparse.Namespace, stdout: TextIO) -> int:
+    try:
+        registry = load_registry(args.config)
+    except ConfigError as exc:
+        stdout.write(f"error: {exc}\n")
+        return 1
+    store = SqliteOnlineStore(args.store_path) if args.store == "sqlite" else OnlineStore()
+    stdout.write(f"serving on http://{args.host}:{args.port} (Ctrl+C to stop)\n")
+    run_server(store, registry, host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: list[str], stdout: TextIO) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -196,6 +228,8 @@ def main(argv: list[str], stdout: TextIO) -> int:
         return _cmd_materialize(args, stdout)
     if args.command == "doctor":
         return _cmd_doctor(stdout)
+    if args.command == "serve":
+        return _cmd_serve(args, stdout)
 
     # Only "demo" remains; subparsers are required so nothing else reaches here.
     stdout.write(_format_demo(ts(args.day)) + "\n")

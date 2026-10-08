@@ -275,3 +275,85 @@ class TestCliDoctor:
         code, out = self._run(["doctor"])
         assert code == 1
         assert "[FAIL] postgres:" in out
+
+
+class TestCliServe:
+    def _run(self, argv: list[str]) -> tuple[int, str]:
+        buf = io.StringIO()
+        code = main(argv, buf)
+        return code, buf.getvalue()
+
+    def test_starts_the_server_with_a_memory_store(self, tmp_path, monkeypatch) -> None:
+        config = tmp_path / "features.py"
+        config.write_text(_CONFIG)
+
+        calls = {}
+
+        def fake_run_server(store, registry, host="127.0.0.1", port=8000):
+            calls["store_type"] = type(store).__name__
+            calls["registry"] = registry
+            calls["host"] = host
+            calls["port"] = port
+
+        monkeypatch.setattr("skewproof.cli.run_server", fake_run_server)
+        code, out = self._run(["serve", "--config", str(config)])
+
+        assert code == 0
+        assert "serving on http://127.0.0.1:8000" in out
+        assert calls["store_type"] == "OnlineStore"
+        assert calls["registry"].get("soil_latest") is not None
+
+    def test_starts_the_server_with_a_sqlite_store(self, tmp_path, monkeypatch) -> None:
+        config = tmp_path / "features.py"
+        config.write_text(_CONFIG)
+        store_path = tmp_path / "features.db"
+
+        calls = {}
+        monkeypatch.setattr(
+            "skewproof.cli.run_server",
+            lambda store, registry, host="127.0.0.1", port=8000: calls.update(
+                store_type=type(store).__name__
+            ),
+        )
+        code, _ = self._run([
+            "serve", "--config", str(config), "--store", "sqlite",
+            "--store-path", str(store_path),
+        ])
+
+        assert code == 0
+        assert calls["store_type"] == "SqliteOnlineStore"
+
+    def test_custom_host_and_port_are_forwarded(self, tmp_path, monkeypatch) -> None:
+        config = tmp_path / "features.py"
+        config.write_text(_CONFIG)
+
+        calls = {}
+        monkeypatch.setattr(
+            "skewproof.cli.run_server",
+            lambda store, registry, host="127.0.0.1", port=8000: calls.update(
+                host=host, port=port
+            ),
+        )
+        code, out = self._run([
+            "serve", "--config", str(config), "--host", "0.0.0.0", "--port", "9001",
+        ])
+
+        assert code == 0
+        assert calls == {"host": "0.0.0.0", "port": 9001}
+        assert "serving on http://0.0.0.0:9001" in out
+
+    def test_bad_config_reports_error_and_never_starts_server(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        called = False
+
+        def fake_run_server(*args, **kwargs):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr("skewproof.cli.run_server", fake_run_server)
+        code, out = self._run(["serve", "--config", str(tmp_path / "missing.py")])
+
+        assert code == 1
+        assert "error:" in out
+        assert called is False
