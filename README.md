@@ -141,6 +141,20 @@ Both sides are `Protocol`-typed, so a new backend only needs to satisfy `rows_fo
 | `SqliteOnlineStore`   | store  | a file (or none)    | single-process serving, durable, no server to run |
 | `RedisOnlineStore`    | store  | Redis               | multi-process / networked serving  |
 
+## Serving over HTTP
+
+```bash
+skewproof serve --config features.py --store sqlite --store-path features.db
+```
+
+- `GET /healthz` - liveness check
+- `GET /metrics` - request and error counters, Prometheus text format
+- `GET /features/<name>/<entity_id>` - the materialized value (`null` if there isn't one)
+
+It's stdlib `http.server`, single-threaded, with no extra dependencies - meant for
+local use and small deployments, not high-throughput serving. Every request is
+logged through the standard `logging` module. See the docs site for details.
+
 ## Testing the core guarantee
 
 `tests/test_definition.py` and `tests/test_online.py` check `reduce()` and the
@@ -163,6 +177,18 @@ exist: while writing them, I temporarily reintroduced two bugs that had already
 been fixed elsewhere in this project's history (a `<=`/`<` inclusive-boundary
 slip, and a one-second skew between the offline and online value) and confirmed
 each was still caught.
+
+## Documentation
+
+The docs live in `docs/` and are built with [mkdocs](https://www.mkdocs.org/):
+
+```bash
+pip install -r requirements/docs.txt
+mkdocs serve
+```
+
+CI builds them with `mkdocs build --strict` on every push (so a broken link fails
+the build) and deploys to GitHub Pages on pushes to `main`.
 
 ## License
 
